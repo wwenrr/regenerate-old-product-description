@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JSONL Data Viewer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #1a1a1a;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        select, input[type="file"], button {
+            padding: 10px 16px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            background: white;
+            cursor: pointer;
+        }
+
+        select:hover, button:hover {
+            border-color: #999;
+        }
+
+        select:focus, input:focus, button:focus {
+            outline: none;
+            border-color: #666;
+        }
+
+        input[type="text"], input[type="search"] {
+            padding: 10px 16px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            min-width: 300px;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .stat-label {
+            font-size: 12px;
+            text-transform: uppercase;
+            color: #888;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 600;
+            color: #1a1a1a;
+        }
+
+        .filters {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .filter-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .filter-label {
+            font-size: 13px;
+            color: #666;
+            font-weight: 500;
+        }
+
+        .table-container {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        th {
+            background: #f8f9fa;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #1a1a1a;
+            border-bottom: 2px solid #e9ecef;
+            white-space: nowrap;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        th:hover {
+            background: #e9ecef;
+        }
+
+        th.sortable::after {
+            content: ' ⇅';
+            opacity: 0.3;
+        }
+
+        th.sorted-asc::after {
+            content: ' ↑';
+            opacity: 1;
+        }
+
+        th.sorted-desc::after {
+            content: ' ↓';
+            opacity: 1;
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-skipped {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-processing {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .eye-icon {
+            cursor: pointer;
+            font-size: 18px;
+            opacity: 0.6;
+            display: inline-block;
+            padding: 4px 8px;
+        }
+
+        .eye-icon:hover {
+            opacity: 1;
+        }
+
+        .product-link {
+            color: #0066cc;
+            text-decoration: none;
+        }
+
+        .product-link:hover {
+            text-decoration: underline;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+        }
+
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+            width: 90%;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1a1a1a;
+        }
+
+        .modal-close {
+            font-size: 28px;
+            font-weight: 300;
+            cursor: pointer;
+            opacity: 0.6;
+            line-height: 1;
+        }
+
+        .modal-close:hover {
+            opacity: 1;
+        }
+
+        .modal-body {
+            line-height: 1.6;
+            color: #333;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+            font-size: 16px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 80px 20px;
+            color: #999;
+        }
+
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px 20px;
+            border-radius: 6px;
+            border-left: 4px solid #dc3545;
+            margin-bottom: 20px;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin-top: 30px;
+            padding: 20px;
+        }
+
+        .pagination button {
+            padding: 8px 16px;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .pagination button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .pagination button:not(:disabled):hover {
+            background: #f5f5f5;
+            border-color: #999;
+        }
+
+        .pagination-info {
+            font-size: 14px;
+            color: #666;
+            padding: 0 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>JSONL Data Viewer</h1>
+            <div class="controls">
+                <div class="file-selector">
+                    <select id="fileSelect">
+                        <option value="">Select a file...</option>
+                        <option value="jwl.jsonl">jwl.jsonl</option>
+                    </select>
+                </div>
+                <input type="file" id="customFileInput" accept=".jsonl,.json" />
+                <button id="reloadBtn">Reload</button>
+            </div>
+            <div class="controls" style="margin-top: 15px;">
+                <input type="text" id="urlInput" placeholder="Enter raw JSONL URL..." style="flex: 1; min-width: 400px;" />
+                <button id="loadUrlBtn">Load from URL</button>
+            </div>
+        </header>
+
+        <div id="statsContainer" class="stats" style="display: none;"></div>
+
+        <div id="filtersContainer" class="filters" style="display: none;">
+            <div class="filter-group">
+                <label class="filter-label" for="searchInput">Search:</label>
+                <input type="search" id="searchInput" placeholder="Search by title or product ID..." />
+            </div>
+            <div class="filter-group">
+                <label class="filter-label" for="statusFilter">Status:</label>
+                <select id="statusFilter">
+                    <option value="">All Statuses</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label class="filter-label" for="categoryFilter">Category:</label>
+                <select id="categoryFilter">
+                    <option value="">All Categories</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="errorContainer"></div>
+        <div id="productsContainer"></div>
+        <div id="paginationContainer"></div>
+    </div>
+
+    <div id="descriptionModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title" id="modalTitle"></div>
+                <span class="modal-close" id="modalClose">&times;</span>
+            </div>
+            <div class="modal-body" id="modalBody"></div>
+        </div>
+    </div>
+
+    <script>
+        let allData = [];
+        let filteredData = [];
+        let currentPage = 1;
+        let sortField = 'processed_at';
+        let sortDirection = 'desc';
+        const itemsPerPage = 50;
+
+        const fileSelect = document.getElementById('fileSelect');
+        const customFileInput = document.getElementById('customFileInput');
+        const reloadBtn = document.getElementById('reloadBtn');
+        const urlInput = document.getElementById('urlInput');
+        const loadUrlBtn = document.getElementById('loadUrlBtn');
+        const searchInput = document.getElementById('searchInput');
+        const statusFilter = document.getElementById('statusFilter');
+        const categoryFilter = document.getElementById('categoryFilter');
+        const productsContainer = document.getElementById('productsContainer');
+        const statsContainer = document.getElementById('statsContainer');
+        const filtersContainer = document.getElementById('filtersContainer');
+        const errorContainer = document.getElementById('errorContainer');
+        const paginationContainer = document.getElementById('paginationContainer');
+        const modal = document.getElementById('descriptionModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalBody = document.getElementById('modalBody');
+        const modalClose = document.getElementById('modalClose');
+
+        fileSelect.addEventListener('change', handleFileSelect);
+        customFileInput.addEventListener('change', handleCustomFileUpload);
+        reloadBtn.addEventListener('click', () => {
+            if (fileSelect.value) {
+                loadFile(fileSelect.value);
+            }
+        });
+        loadUrlBtn.addEventListener('click', handleUrlLoad);
+        urlInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                handleUrlLoad();
+            }
+        });
+        searchInput.addEventListener('input', applyFilters);
+        statusFilter.addEventListener('change', applyFilters);
+        categoryFilter.addEventListener('change', applyFilters);
+        modalClose.addEventListener('click', closeModal);
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeModal();
+        });
+
+        async function loadFile(filename) {
+            showLoading();
+            errorContainer.innerHTML = '';
+            
+            try {
+                const response = await fetch(filename);
+                if (!response.ok) throw new Error(`Failed to load ${filename}`);
+                
+                const text = await response.text();
+                parseJSONL(text);
+            } catch (error) {
+                showError(`Error loading file: ${error.message}`);
+            }
+        }
+
+        async function loadFromUrl(url) {
+            showLoading();
+            errorContainer.innerHTML = '';
+            
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`Failed to load from URL: ${response.status}`);
+                
+                const text = await response.text();
+                parseJSONL(text);
+            } catch (error) {
+                showError(`Error loading from URL: ${error.message}`);
+            }
+        }
+
+        function handleUrlLoad() {
+            const url = urlInput.value.trim();
+            if (!url) {
+                showError('Please enter a valid URL');
+                return;
+            }
+            loadFromUrl(url);
+        }
+
+        function checkQueryString() {
+            const params = new URLSearchParams(window.location.search);
+            const url = params.get('url');
+            if (url) {
+                urlInput.value = url;
+                loadFromUrl(url);
+                return true;
+            }
+            return false;
+        }
+
+        function handleFileSelect() {
+            const filename = fileSelect.value;
+            if (filename) {
+                loadFile(filename);
+            }
+        }
+
+        function handleCustomFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            showLoading();
+            errorContainer.innerHTML = '';
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    parseJSONL(e.target.result);
+                } catch (error) {
+                    showError(`Error reading file: ${error.message}`);
+                }
+            };
+            reader.onerror = () => {
+                showError('Failed to read file');
+            };
+            reader.readAsText(file);
+        }
+
+        function parseJSONL(text) {
+            try {
+                const lines = text.trim().split('\n');
+                allData = lines
+                    .filter(line => line.trim())
+                    .map(line => JSON.parse(line));
+                
+                if (allData.length === 0) {
+                    throw new Error('No data found in file');
+                }
+
+                updateFilters();
+                applyFilters();
+                updateStats();
+            } catch (error) {
+                showError(`Error parsing JSONL: ${error.message}`);
+            }
+        }
+
+        function updateFilters() {
+            const statuses = [...new Set(allData.map(item => item.status).filter(Boolean))];
+            const categories = [...new Set(allData.map(item => item.category).filter(Boolean))];
+
+            statusFilter.innerHTML = '<option value="">All Statuses</option>' + 
+                statuses.map(s => `<option value="${s}">${s}</option>`).join('');
+
+            categoryFilter.innerHTML = '<option value="">All Categories</option>' + 
+                categories.map(c => `<option value="${c}">${c}</option>`).join('');
+
+            filtersContainer.style.display = 'flex';
+        }
+
+        function applyFilters() {
+            const searchTerm = searchInput.value.toLowerCase();
+            const statusValue = statusFilter.value;
+            const categoryValue = categoryFilter.value;
+
+            filteredData = allData.filter(item => {
+                const matchesSearch = !searchTerm || 
+                    item.title?.toLowerCase().includes(searchTerm) ||
+                    item.product_id?.toLowerCase().includes(searchTerm);
+                
+                const matchesStatus = !statusValue || item.status === statusValue;
+                const matchesCategory = !categoryValue || item.category === categoryValue;
+
+                return matchesSearch && matchesStatus && matchesCategory;
+            });
+
+            sortData();
+            currentPage = 1;
+            renderProducts();
+        }
+
+        function sortData() {
+            filteredData.sort((a, b) => {
+                let aVal = a[sortField];
+                let bVal = b[sortField];
+
+                if (sortField === 'processed_at') {
+                    aVal = aVal ? new Date(aVal).getTime() : 0;
+                    bVal = bVal ? new Date(bVal).getTime() : 0;
+                } else if (sortField === 'processing_duration_ms') {
+                    aVal = aVal || 0;
+                    bVal = bVal || 0;
+                } else {
+                    aVal = aVal || '';
+                    bVal = bVal || '';
+                }
+
+                if (sortDirection === 'asc') {
+                    return aVal > bVal ? 1 : -1;
+                } else {
+                    return aVal < bVal ? 1 : -1;
+                }
+            });
+        }
+
+        function handleSort(field) {
+            if (sortField === field) {
+                sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortField = field;
+                sortDirection = 'desc';
+            }
+            sortData();
+            renderProducts();
+        }
+
+        function updateStats() {
+            const totalProducts = allData.length;
+            const statuses = {};
+            const categories = {};
+            let totalDuration = 0;
+            let durationCount = 0;
+
+            allData.forEach(item => {
+                if (item.status) {
+                    statuses[item.status] = (statuses[item.status] || 0) + 1;
+                }
+                if (item.category) {
+                    categories[item.category] = (categories[item.category] || 0) + 1;
+                }
+                if (item.processing_duration_ms) {
+                    totalDuration += item.processing_duration_ms;
+                    durationCount++;
+                }
+            });
+
+            const avgDuration = durationCount > 0 ? (totalDuration / durationCount).toFixed(2) : 0;
+
+            statsContainer.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-label">Total Products</div>
+                    <div class="stat-value">${totalProducts}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Unique Statuses</div>
+                    <div class="stat-value">${Object.keys(statuses).length}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Unique Categories</div>
+                    <div class="stat-value">${Object.keys(categories).length || 'N/A'}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Avg Processing Time</div>
+                    <div class="stat-value">${avgDuration}ms</div>
+                </div>
+            `;
+            statsContainer.style.display = 'grid';
+        }
+
+        function renderProducts() {
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = startIndex + itemsPerPage;
+            const pageData = filteredData.slice(startIndex, endIndex);
+
+            if (filteredData.length === 0) {
+                productsContainer.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-text">No products found matching your filters</div>
+                    </div>
+                `;
+                paginationContainer.innerHTML = '';
+                return;
+            }
+
+            const getSortClass = (field) => {
+                if (sortField !== field) return 'sortable';
+                return sortDirection === 'asc' ? 'sorted-asc' : 'sorted-desc';
+            };
+
+            productsContainer.innerHTML = `
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th class="${getSortClass('title')}" onclick="handleSort('title')">Title</th>
+                                <th>Product Link</th>
+                                <th class="${getSortClass('status')}" onclick="handleSort('status')">Status</th>
+                                <th>Old</th>
+                                <th>New</th>
+                                <th class="${getSortClass('category')}" onclick="handleSort('category')">Category</th>
+                                <th class="${getSortClass('processed_at')}" onclick="handleSort('processed_at')">Processed At</th>
+                                <th class="${getSortClass('processing_duration_ms')}" onclick="handleSort('processing_duration_ms')">Duration</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${pageData.map((item, index) => {
+                                const productId = extractProductId(item.product_id);
+                                const shopifyLink = productId ? 
+                                    `https://admin.shopify.com/store/japan-with-love/products/${productId}` : 
+                                    '#';
+                                
+                                return `
+                                    <tr>
+                                        <td style="max-width: 300px;">${escapeHtml(item.title || 'Untitled')}</td>
+                                        <td>
+                                            ${productId ? 
+                                                `<a href="${shopifyLink}" target="_blank" class="product-link">${productId}</a>` : 
+                                                'N/A'
+                                            }
+                                        </td>
+                                        <td>
+                                            ${item.status ? 
+                                                `<span class="status-badge ${getStatusClass(item.status)}">${item.status}</span>` : 
+                                                'N/A'
+                                            }
+                                        </td>
+                                        <td>
+                                            ${item.old_description ? 
+                                                `<span class="eye-icon" onclick="showDescription('Old Description', ${index}, 'old')" title="View old description">👁</span>` : 
+                                                '-'
+                                            }
+                                        </td>
+                                        <td>
+                                            ${item.new_description ? 
+                                                `<span class="eye-icon" onclick="showDescription('New Description', ${index}, 'new')" title="View new description">👁</span>` : 
+                                                '-'
+                                            }
+                                        </td>
+                                        <td>${escapeHtml(item.category || '-')}</td>
+                                        <td style="white-space: nowrap;">${formatDate(item.processed_at)}</td>
+                                        <td>${item.processing_duration_ms !== undefined && item.processing_duration_ms !== null ? 
+                                            item.processing_duration_ms.toFixed(2) + 'ms' : 
+                                            '-'
+                                        }</td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+
+            renderPagination();
+        }
+
+        function extractProductId(productIdGid) {
+            if (!productIdGid) return null;
+            const match = productIdGid.match(/\/(\d+)$/);
+            return match ? match[1] : null;
+        }
+
+        function showDescription(title, index, type) {
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const item = filteredData[startIndex + index];
+            const description = type === 'old' ? item.old_description : item.new_description;
+            
+            modalTitle.textContent = title + ': ' + (item.title || 'Untitled');
+            modalBody.innerHTML = description || 'No description available';
+            modal.classList.add('active');
+        }
+
+        function closeModal() {
+            modal.classList.remove('active');
+        }
+
+        function renderPagination() {
+            const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+            
+            if (totalPages <= 1) {
+                paginationContainer.innerHTML = '';
+                return;
+            }
+
+            const startItem = (currentPage - 1) * itemsPerPage + 1;
+            const endItem = Math.min(currentPage * itemsPerPage, filteredData.length);
+
+            paginationContainer.innerHTML = `
+                <div class="pagination">
+                    <button ${currentPage === 1 ? 'disabled' : ''} onclick="goToPage(1)">First</button>
+                    <button ${currentPage === 1 ? 'disabled' : ''} onclick="goToPage(${currentPage - 1})">Previous</button>
+                    <div class="pagination-info">${startItem}-${endItem} of ${filteredData.length}</div>
+                    <button ${currentPage === totalPages ? 'disabled' : ''} onclick="goToPage(${currentPage + 1})">Next</button>
+                    <button ${currentPage === totalPages ? 'disabled' : ''} onclick="goToPage(${totalPages})">Last</button>
+                </div>
+            `;
+        }
+
+        function goToPage(page) {
+            currentPage = page;
+            renderProducts();
+            window.scrollTo({ top: 0 });
+        }
+
+        function getStatusClass(status) {
+            const statusLower = status.toLowerCase();
+            if (statusLower.includes('skip')) return 'status-skipped';
+            if (statusLower.includes('success') || statusLower.includes('complete')) return 'status-success';
+            if (statusLower.includes('error') || statusLower.includes('fail')) return 'status-error';
+            return 'status-processing';
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return '-';
+            try {
+                const date = new Date(dateStr);
+                return date.toLocaleString('en-US', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                });
+            } catch {
+                return dateStr;
+            }
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function showLoading() {
+            productsContainer.innerHTML = '<div class="loading">Loading data...</div>';
+            statsContainer.style.display = 'none';
+            filtersContainer.style.display = 'none';
+            paginationContainer.innerHTML = '';
+        }
+
+        function showError(message) {
+            errorContainer.innerHTML = `<div class="error-message">${escapeHtml(message)}</div>`;
+            productsContainer.innerHTML = '';
+            statsContainer.style.display = 'none';
+            filtersContainer.style.display = 'none';
+            paginationContainer.innerHTML = '';
+        }
+
+        if (!checkQueryString()) {
+            if (fileSelect.value) {
+                loadFile(fileSelect.value);
+            }
+        }
+    </script>
+</body>
+</html>
