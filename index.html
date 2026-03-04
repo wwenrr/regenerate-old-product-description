@@ -351,8 +351,6 @@
                 <div class="file-selector">
                     <select id="fileSelect">
                         <option value="">Select a file...</option>
-                        <option value="jwl.jsonl">jwl.jsonl</option>
-                        <option value="jwl_20260207_154743.jsonl" selected>jwl_20260207_154743.jsonl</option>
                     </select>
                 </div>
                 <input type="file" id="customFileInput" accept=".jsonl,.json" />
@@ -447,6 +445,20 @@
             if (e.target === modal) closeModal();
         });
 
+        const MANIFEST_URL = 'available-files.json';
+
+        async function loadAvailableFiles() {
+            try {
+                const response = await fetch(MANIFEST_URL);
+                if (!response.ok) return;
+                const list = await response.json();
+                if (!Array.isArray(list) || list.length === 0) return;
+                const options = list.map(f => `<option value="${escapeHtml(f)}">${escapeHtml(f)}</option>`).join('');
+                fileSelect.innerHTML = '<option value="">Select a file...</option>' + options;
+                fileSelect.value = list[0];
+            } catch (_) {}
+        }
+
         async function loadFile(filename) {
             showLoading();
             errorContainer.innerHTML = '';
@@ -486,6 +498,19 @@
             loadFromUrl(url);
         }
 
+        function updateFileInQueryString(filename) {
+            const params = new URLSearchParams(window.location.search);
+            params.delete('url');
+            if (filename) {
+                params.set('file', filename);
+            } else {
+                params.delete('file');
+            }
+            const newSearch = params.toString();
+            const newUrl = newSearch ? `${window.location.pathname}?${newSearch}` : window.location.pathname;
+            window.history.replaceState(null, '', newUrl);
+        }
+
         function checkQueryString() {
             const params = new URLSearchParams(window.location.search);
             const url = params.get('url');
@@ -494,13 +519,22 @@
                 loadFromUrl(url);
                 return true;
             }
+            const file = params.get('file');
+            if (file && Array.from(fileSelect.options).some(opt => opt.value === file)) {
+                fileSelect.value = file;
+                loadFile(file);
+                return true;
+            }
             return false;
         }
 
         function handleFileSelect() {
             const filename = fileSelect.value;
             if (filename) {
+                updateFileInQueryString(filename);
                 loadFile(filename);
+            } else {
+                updateFileInQueryString('');
             }
         }
 
@@ -694,8 +728,9 @@
                         <tbody>
                             ${pageData.map((item, index) => {
                                 const productId = extractProductId(item.product_id);
+                                const storeSlug = getShopifyStoreSlug(fileSelect.value);
                                 const shopifyLink = productId ? 
-                                    `https://admin.shopify.com/store/japan-with-love/products/${productId}` : 
+                                    `${SHOPIFY_BASE}/${storeSlug}/products/${productId}` : 
                                     '#';
                                 
                                 return `
@@ -740,6 +775,15 @@
             `;
 
             renderPagination();
+        }
+
+        const SHOPIFY_STORE_JWL = 'japan-with-love';
+        const SHOPIFY_STORE_JF = 'japan-toy-and-figure';
+        const SHOPIFY_BASE = 'https://admin.shopify.com/store';
+
+        function getShopifyStoreSlug(filename) {
+            if (!filename || filename.startsWith('jf')) return SHOPIFY_STORE_JF;
+            return SHOPIFY_STORE_JWL;
         }
 
         function extractProductId(productIdGid) {
@@ -837,11 +881,11 @@
             paginationContainer.innerHTML = '';
         }
 
-        if (!checkQueryString()) {
-            if (fileSelect.value) {
-                loadFile(fileSelect.value);
-            }
-        }
+        (async function init() {
+            await loadAvailableFiles();
+            if (checkQueryString()) return;
+            if (fileSelect.value) loadFile(fileSelect.value);
+        })();
     </script>
 </body>
 </html>
