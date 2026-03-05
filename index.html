@@ -4,130 +4,268 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JSONL Data Viewer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        :root {
+            --bg-page: #f1f5f9;
+            --bg-card: #ffffff;
+            --border: #e2e8f0;
+            --text: #0f172a;
+            --text-muted: #64748b;
+            --accent: #4f46e5;
+            --accent-hover: #4338ca;
+            --success: #059669;
+            --warning: #d97706;
+            --error: #dc2626;
+            --radius: 10px;
+            --radius-sm: 6px;
+            --shadow: 0 1px 3px rgba(0,0,0,0.06);
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.06);
         }
 
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: #f5f5f5;
-            color: #333;
-            line-height: 1.6;
+            font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+            background: var(--bg-page);
+            color: var(--text);
+            line-height: 1.5;
+            min-height: 100vh;
         }
 
         .container {
-            max-width: 100%;
+            max-width: 1600px;
             margin: 0 auto;
-            padding: 20px;
+            padding: 24px;
         }
 
-        header {
-            background: white;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-            margin-bottom: 30px;
-        }
-
-        h1 {
-            font-size: 28px;
-            font-weight: 600;
-            margin-bottom: 20px;
-            color: #1a1a1a;
-        }
-
-        .controls {
+        .toolbar {
+            background: var(--bg-card);
+            padding: 20px 24px;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            margin-bottom: 24px;
             display: flex;
-            gap: 15px;
             flex-wrap: wrap;
             align-items: center;
+            gap: 16px;
         }
 
-        select, input[type="file"], button {
-            padding: 10px 16px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
+        .toolbar-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text);
+            margin-right: 8px;
+        }
+
+        .toolbar-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .toolbar-divider {
+            width: 1px;
+            height: 28px;
+            background: var(--border);
+        }
+
+        .toolbar-url {
+            position: relative;
+        }
+
+        .toolbar-url .input-height {
+            color: var(--text);
+        }
+
+        .input-height {
+            height: 40px;
+            font-family: inherit;
             font-size: 14px;
-            background: white;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+
+        select.input-height {
+            min-width: 240px;
+            padding: 0 36px 0 14px;
+            cursor: pointer;
+            background: #fafbfc url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 12px center;
+            appearance: none;
+            -webkit-appearance: none;
+        }
+
+        select.input-height option {
+            color: var(--text);
+            background: var(--bg-card);
+        }
+
+        select.input-height:hover {
+            border-color: #cbd5e1;
+        }
+
+        select.input-height:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+        }
+
+        input[type="text"].input-height,
+        input[type="search"].input-height {
+            min-width: 200px;
+            padding: 0 14px;
+            background: #fafbfc;
+            color: var(--text);
+        }
+
+        input[type="text"].input-height::placeholder,
+        input[type="search"].input-height::placeholder {
+            color: #475569;
+        }
+
+        input[type="text"].input-height:hover,
+        input[type="search"].input-height:hover {
+            border-color: #cbd5e1;
+        }
+
+        input[type="text"].input-height:focus,
+        input[type="search"].input-height:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+            background: var(--bg-card);
+        }
+
+        button.input-height {
+            padding: 0 18px;
+            background: var(--bg-card);
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        button.input-height:hover:not(:disabled) {
+            border-color: #cbd5e1;
+            background: #f8fafc;
+        }
+
+        button.input-height:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+        }
+
+        input[type="file"].input-height {
+            padding: 0 14px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        input[type="file"].input-height::-webkit-file-upload-button {
+            height: 38px;
+            padding: 0 14px;
+            margin: 0 12px 0 -6px;
+            border: none;
+            border-radius: 6px;
+            background: #f1f5f9;
+            color: var(--text);
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: 500;
             cursor: pointer;
         }
 
-        select:hover, button:hover {
-            border-color: #999;
+        input[type="file"].input-height::-webkit-file-upload-button:hover {
+            background: #e2e8f0;
         }
 
-        select:focus, input:focus, button:focus {
-            outline: none;
-            border-color: #666;
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
         }
 
-        input[type="text"], input[type="search"] {
-            padding: 10px 16px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            font-size: 14px;
-            min-width: 300px;
+        .btn-primary:hover:not(:disabled) {
+            background: var(--accent-hover);
+            border-color: var(--accent-hover);
         }
 
         .stats {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-bottom: 30px;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
         }
 
         .stat-card {
-            background: white;
+            background: var(--bg-card);
             padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
         }
 
         .stat-label {
             font-size: 12px;
+            font-weight: 500;
+            color: var(--text-muted);
             text-transform: uppercase;
-            color: #888;
-            letter-spacing: 0.5px;
-            margin-bottom: 8px;
+            letter-spacing: 0.04em;
+            margin-bottom: 6px;
         }
 
         .stat-value {
-            font-size: 24px;
-            font-weight: 600;
-            color: #1a1a1a;
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--text);
         }
 
         .filters {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            background: var(--bg-card);
+            padding: 16px 20px;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
             margin-bottom: 20px;
             display: flex;
-            gap: 15px;
+            gap: 20px;
             flex-wrap: wrap;
             align-items: center;
+            border: 1px solid var(--border);
         }
 
         .filter-group {
             display: flex;
-            gap: 10px;
             align-items: center;
+            gap: 8px;
         }
 
         .filter-label {
             font-size: 13px;
-            color: #666;
             font-weight: 500;
+            color: var(--text-muted);
+        }
+
+        .filters select.input-height {
+            min-width: 160px;
+        }
+
+        .filters input[type="search"].input-height {
+            min-width: 220px;
+        }
+
+        .table-wrap {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            border: 1px solid var(--border);
         }
 
         .table-container {
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
             overflow-x: auto;
         }
 
@@ -138,24 +276,31 @@
         }
 
         th {
-            background: #f8f9fa;
-            padding: 12px;
+            background: #f8fafc;
+            padding: 14px 16px;
             text-align: left;
             font-weight: 600;
-            color: #1a1a1a;
-            border-bottom: 2px solid #e9ecef;
+            color: var(--text);
+            border-bottom: 1px solid var(--border);
             white-space: nowrap;
             cursor: pointer;
             user-select: none;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            position: sticky;
+            top: 0;
+            z-index: 1;
         }
 
         th:hover {
-            background: #e9ecef;
+            background: #f1f5f9;
         }
 
         th.sortable::after {
             content: ' ⇅';
-            opacity: 0.3;
+            opacity: 0.4;
+            font-size: 10px;
         }
 
         th.sorted-asc::after {
@@ -169,59 +314,59 @@
         }
 
         td {
-            padding: 12px;
-            border-bottom: 1px solid #f0f0f0;
+            padding: 14px 16px;
+            border-bottom: 1px solid #f1f5f9;
         }
 
-        tr:hover {
-            background: #f8f9fa;
+        tbody tr:hover {
+            background: #f8fafc;
         }
 
         .status-badge {
             display: inline-block;
-            padding: 4px 12px;
-            border-radius: 12px;
+            padding: 4px 10px;
+            border-radius: 20px;
             font-size: 11px;
             font-weight: 600;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.03em;
         }
 
         .status-skipped {
-            background: #fff3cd;
-            color: #856404;
+            background: #fef3c7;
+            color: #92400e;
         }
 
         .status-success {
-            background: #d4edda;
-            color: #155724;
+            background: #d1fae5;
+            color: #065f46;
         }
 
         .status-error {
-            background: #f8d7da;
-            color: #721c24;
+            background: #fee2e2;
+            color: #991b1b;
         }
 
         .status-processing {
-            background: #d1ecf1;
-            color: #0c5460;
+            background: #dbeafe;
+            color: #1e40af;
         }
 
-        .eye-icon {
-            cursor: pointer;
-            font-size: 18px;
-            opacity: 0.6;
-            display: inline-block;
-            padding: 4px 8px;
+        .link-view {
+            font-size: 13px;
+            color: var(--accent);
+            text-decoration: none;
+            font-weight: 500;
         }
 
-        .eye-icon:hover {
-            opacity: 1;
+        .link-view:hover {
+            text-decoration: underline;
         }
 
         .product-link {
-            color: #0066cc;
+            color: var(--accent);
             text-decoration: none;
+            font-weight: 500;
         }
 
         .product-link:hover {
@@ -232,81 +377,101 @@
             display: none;
             position: fixed;
             z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.5);
-        }
-
-        .modal.active {
-            display: flex;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.4);
+            backdrop-filter: blur(4px);
             align-items: center;
             justify-content: center;
         }
 
+        .modal.active {
+            display: flex;
+        }
+
         .modal-content {
-            background: white;
-            padding: 30px;
-            border-radius: 8px;
-            max-width: 800px;
-            max-height: 80vh;
-            overflow-y: auto;
+            background: var(--bg-card);
+            padding: 0;
+            border-radius: var(--radius);
+            max-width: 720px;
+            max-height: 85vh;
             width: 90%;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+            border: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
         }
 
         .modal-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid #f0f0f0;
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
         }
 
         .modal-title {
-            font-size: 18px;
+            font-size: 16px;
             font-weight: 600;
-            color: #1a1a1a;
+            color: var(--text);
         }
 
         .modal-close {
-            font-size: 28px;
-            font-weight: 300;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            background: #f1f5f9;
+            color: var(--text-muted);
+            border-radius: var(--radius-sm);
             cursor: pointer;
-            opacity: 0.6;
+            font-size: 20px;
             line-height: 1;
         }
 
         .modal-close:hover {
-            opacity: 1;
+            background: #e2e8f0;
+            color: var(--text);
         }
 
         .modal-body {
+            padding: 24px;
+            overflow-y: auto;
             line-height: 1.6;
-            color: #333;
+            color: var(--text);
+            font-size: 14px;
         }
 
         .loading {
             text-align: center;
-            padding: 60px 20px;
-            color: #666;
-            font-size: 16px;
+            padding: 80px 24px;
+            color: var(--text-muted);
+            font-size: 15px;
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
         }
 
         .empty-state {
             text-align: center;
-            padding: 80px 20px;
-            color: #999;
+            padding: 80px 24px;
+            color: var(--text-muted);
+            font-size: 15px;
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
         }
 
         .error-message {
-            background: #f8d7da;
-            color: #721c24;
-            padding: 15px 20px;
-            border-radius: 6px;
-            border-left: 4px solid #dc3545;
+            background: #fee2e2;
+            color: #991b1b;
+            padding: 16px 20px;
+            border-radius: var(--radius-sm);
+            border: 1px solid #fecaca;
             margin-bottom: 20px;
+            font-size: 14px;
         }
 
         .pagination {
@@ -314,51 +479,64 @@
             justify-content: center;
             align-items: center;
             gap: 10px;
-            margin-top: 30px;
-            padding: 20px;
+            padding: 24px;
+            flex-wrap: wrap;
         }
 
         .pagination button {
-            padding: 8px 16px;
-            background: white;
-            border: 1px solid #ddd;
-            border-radius: 6px;
+            height: 40px;
+            padding: 0 16px;
+            min-width: 44px;
+            font-family: inherit;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text);
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
             cursor: pointer;
+            transition: border-color 0.15s, background 0.15s;
         }
 
         .pagination button:disabled {
-            opacity: 0.4;
+            color: #94a3b8;
+            background: #f1f5f9;
+            border-color: #e2e8f0;
             cursor: not-allowed;
         }
 
         .pagination button:not(:disabled):hover {
-            background: #f5f5f5;
-            border-color: #999;
+            background: #f8fafc;
+            border-color: #cbd5e1;
+        }
+
+        .pagination button:not(:disabled):active {
+            background: #f1f5f9;
         }
 
         .pagination-info {
             font-size: 14px;
-            color: #666;
-            padding: 0 15px;
+            font-weight: 500;
+            color: var(--text);
+            padding: 0 16px;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <header>
-            <h1>JSONL Data Viewer</h1>
-            <div class="controls">
-                <div class="file-selector">
-                    <select id="fileSelect">
-                        <option value="">Select a file...</option>
-                    </select>
-                </div>
-                <input type="file" id="customFileInput" accept=".jsonl,.json" />
-                <button id="reloadBtn">Reload</button>
+        <header class="toolbar">
+            <span class="toolbar-title">JSONL Data Viewer</span>
+            <div class="toolbar-group">
+                <select id="fileSelect" class="input-height">
+                    <option value="">Select a file...</option>
+                </select>
+                <input type="file" id="customFileInput" class="input-height" accept=".jsonl,.json" />
+                <button id="reloadBtn" type="button" class="input-height">Reload</button>
             </div>
-            <div class="controls" style="margin-top: 15px;">
-                <input type="text" id="urlInput" placeholder="Enter raw JSONL URL..." style="flex: 1; min-width: 400px;" />
-                <button id="loadUrlBtn">Load from URL</button>
+            <div class="toolbar-divider" aria-hidden="true"></div>
+            <div class="toolbar-group toolbar-url" style="flex: 1; min-width: 200px;">
+                <input type="text" id="urlInput" class="input-height" placeholder="Paste JSONL URL here…" style="flex: 1; min-width: 0;" />
+                <button id="loadUrlBtn" type="button" class="input-height btn-primary">Load URL</button>
             </div>
         </header>
 
@@ -366,19 +544,19 @@
 
         <div id="filtersContainer" class="filters" style="display: none;">
             <div class="filter-group">
-                <label class="filter-label" for="searchInput">Search:</label>
-                <input type="search" id="searchInput" placeholder="Search by title or product ID..." />
+                <label class="filter-label" for="searchInput">Search</label>
+                <input type="search" id="searchInput" class="input-height" placeholder="Title or product ID..." />
             </div>
             <div class="filter-group">
-                <label class="filter-label" for="statusFilter">Status:</label>
-                <select id="statusFilter">
-                    <option value="">All Statuses</option>
+                <label class="filter-label" for="statusFilter">Status</label>
+                <select id="statusFilter" class="input-height">
+                    <option value="">All</option>
                 </select>
             </div>
             <div class="filter-group">
-                <label class="filter-label" for="categoryFilter">Category:</label>
-                <select id="categoryFilter">
-                    <option value="">All Categories</option>
+                <label class="filter-label" for="categoryFilter">Category</label>
+                <select id="categoryFilter" class="input-height">
+                    <option value="">All</option>
                 </select>
             </div>
         </div>
@@ -392,7 +570,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <div class="modal-title" id="modalTitle"></div>
-                <span class="modal-close" id="modalClose">&times;</span>
+                <button type="button" class="modal-close" id="modalClose" aria-label="Close">&times;</button>
             </div>
             <div class="modal-body" id="modalBody"></div>
         </div>
@@ -404,7 +582,7 @@
         let currentPage = 1;
         let sortField = 'processed_at';
         let sortDirection = 'desc';
-        const itemsPerPage = 50;
+        const itemsPerPage = 200;
 
         const fileSelect = document.getElementById('fileSelect');
         const customFileInput = document.getElementById('customFileInput');
@@ -582,10 +760,10 @@
             const statuses = [...new Set(allData.map(item => item.status).filter(Boolean))];
             const categories = [...new Set(allData.map(item => item.category).filter(Boolean))];
 
-            statusFilter.innerHTML = '<option value="">All Statuses</option>' + 
+            statusFilter.innerHTML = '<option value="">All</option>' + 
                 statuses.map(s => `<option value="${s}">${s}</option>`).join('');
 
-            categoryFilter.innerHTML = '<option value="">All Categories</option>' + 
+            categoryFilter.innerHTML = '<option value="">All</option>' + 
                 categories.map(c => `<option value="${c}">${c}</option>`).join('');
 
             filtersContainer.style.display = 'flex';
@@ -711,6 +889,7 @@
             };
 
             productsContainer.innerHTML = `
+                <div class="table-wrap">
                 <div class="table-container">
                     <table>
                         <thead>
@@ -750,13 +929,13 @@
                                         </td>
                                         <td>
                                             ${item.old_description ? 
-                                                `<span class="eye-icon" onclick="showDescription('Old Description', ${index}, 'old')" title="View old description">👁</span>` : 
+                                                `<a href="#" class="link-view" onclick="showDescription('Old Description', ${index}, 'old'); return false;">View</a>` : 
                                                 '-'
                                             }
                                         </td>
                                         <td>
                                             ${item.new_description ? 
-                                                `<span class="eye-icon" onclick="showDescription('New Description', ${index}, 'new')" title="View new description">👁</span>` : 
+                                                `<a href="#" class="link-view" onclick="showDescription('New Description', ${index}, 'new'); return false;">View</a>` : 
                                                 '-'
                                             }
                                         </td>
@@ -771,6 +950,7 @@
                             }).join('')}
                         </tbody>
                     </table>
+                </div>
                 </div>
             `;
 
