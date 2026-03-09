@@ -896,6 +896,7 @@
                             <tr>
                                 <th class="${getSortClass('title')}" onclick="handleSort('title')">Title</th>
                                 <th>Product Link</th>
+                                <th>Live URL</th>
                                 <th class="${getSortClass('status')}" onclick="handleSort('status')">Status</th>
                                 <th>Old</th>
                                 <th>New</th>
@@ -908,6 +909,7 @@
                             ${pageData.map((item, index) => {
                                 const productId = extractProductId(item.product_id);
                                 const productAdminLink = getProductAdminLink(fileSelect.value, productId);
+                                const liveUrl = item.live_url;
                                 
                                 return `
                                     <tr>
@@ -916,6 +918,12 @@
                                             ${productId ? 
                                                 `<a href="${productAdminLink}" target="_blank" class="product-link">${productId}</a>` : 
                                                 'N/A'
+                                            }
+                                        </td>
+                                        <td>
+                                            ${liveUrl ? 
+                                                `<a href="${escapeHtml(liveUrl)}" target="_blank" class="product-link">Live</a>` : 
+                                                '-'
                                             }
                                         </td>
                                         <td>
