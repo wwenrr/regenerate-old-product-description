@@ -777,7 +777,7 @@
             filteredData = allData.filter(item => {
                 const matchesSearch = !searchTerm || 
                     item.title?.toLowerCase().includes(searchTerm) ||
-                    item.product_id?.toLowerCase().includes(searchTerm);
+                    String(item.product_id ?? '').toLowerCase().includes(searchTerm);
                 
                 const matchesStatus = !statusValue || item.status === statusValue;
                 const matchesCategory = !categoryValue || item.category === categoryValue;
@@ -907,17 +907,14 @@
                         <tbody>
                             ${pageData.map((item, index) => {
                                 const productId = extractProductId(item.product_id);
-                                const storeSlug = getShopifyStoreSlug(fileSelect.value);
-                                const shopifyLink = productId ? 
-                                    `${SHOPIFY_BASE}/${storeSlug}/products/${productId}` : 
-                                    '#';
+                                const productAdminLink = getProductAdminLink(fileSelect.value, productId);
                                 
                                 return `
                                     <tr>
                                         <td style="max-width: 300px;">${escapeHtml(item.title || 'Untitled')}</td>
                                         <td>
                                             ${productId ? 
-                                                `<a href="${shopifyLink}" target="_blank" class="product-link">${productId}</a>` : 
+                                                `<a href="${productAdminLink}" target="_blank" class="product-link">${productId}</a>` : 
                                                 'N/A'
                                             }
                                         </td>
@@ -960,16 +957,40 @@
         const SHOPIFY_STORE_JWL = 'japan-with-love';
         const SHOPIFY_STORE_JF = 'japan-toy-and-figure';
         const SHOPIFY_BASE = 'https://admin.shopify.com/store';
+        const JAPANFLOWS_PRODUCT_EDIT_BASE = 'https://admin.japanflows.com/admin_j2p024/catalog/product/edit/id';
+
+        function isJapanFlowsFile(filename) {
+            return !!filename && filename.startsWith('jpflow');
+        }
 
         function getShopifyStoreSlug(filename) {
             if (!filename || filename.startsWith('jf')) return SHOPIFY_STORE_JF;
             return SHOPIFY_STORE_JWL;
         }
 
+        function getProductAdminLink(filename, productId) {
+            if (!productId) return '#';
+            if (isJapanFlowsFile(filename)) return `${JAPANFLOWS_PRODUCT_EDIT_BASE}/${productId}`;
+
+            const storeSlug = getShopifyStoreSlug(filename);
+            return `${SHOPIFY_BASE}/${storeSlug}/products/${productId}`;
+        }
+
         function extractProductId(productIdGid) {
-            if (!productIdGid) return null;
-            const match = productIdGid.match(/\/(\d+)$/);
-            return match ? match[1] : null;
+            if (productIdGid === undefined || productIdGid === null) return null;
+            if (typeof productIdGid === 'number') return String(productIdGid);
+            if (typeof productIdGid !== 'string') return null;
+
+            const trimmed = productIdGid.trim();
+            if (!trimmed) return null;
+
+            const gidMatch = trimmed.match(/\/(\d+)\s*$/);
+            if (gidMatch) return gidMatch[1];
+
+            const numericMatch = trimmed.match(/^\d+$/);
+            if (numericMatch) return trimmed;
+
+            return null;
         }
 
         function showDescription(title, index, type) {
