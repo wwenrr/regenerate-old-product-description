@@ -646,7 +646,7 @@
                 if (!response.ok) throw new Error(`Failed to load ${filename}`);
                 
                 const text = await response.text();
-                parseJSONL(text);
+                parseData(text, filename);
             } catch (error) {
                 showError(`Error loading file: ${error.message}`);
             }
@@ -661,7 +661,7 @@
                 if (!response.ok) throw new Error(`Failed to load from URL: ${response.status}`);
                 
                 const text = await response.text();
-                parseJSONL(text);
+                parseData(text, url);
             } catch (error) {
                 showError(`Error loading from URL: ${error.message}`);
             }
@@ -726,7 +726,7 @@
             const reader = new FileReader();
             reader.onload = (e) => {
                 try {
-                    parseJSONL(e.target.result);
+                    parseData(e.target.result, file.name);
                 } catch (error) {
                     showError(`Error reading file: ${error.message}`);
                 }
@@ -737,12 +737,26 @@
             reader.readAsText(file);
         }
 
-        function parseJSONL(text) {
+        function parseData(text, sourceLabel = 'input') {
             try {
-                const lines = text.trim().split('\n');
-                allData = lines
-                    .filter(line => line.trim())
-                    .map(line => JSON.parse(line));
+                const normalizedText = String(text ?? '').trim();
+                if (!normalizedText) {
+                    throw new Error('No data found in file');
+                }
+
+                if (/^version https?:\/\/git-lfs\.github\.com\/spec\/v1/i.test(normalizedText)) {
+                    throw new Error(
+                        `${sourceLabel} is a Git LFS pointer, not the actual JSONL data file`
+                    );
+                }
+
+                if (/^<!doctype html/i.test(normalizedText) || /^<html[\s>]/i.test(normalizedText)) {
+                    throw new Error(
+                        `${sourceLabel} returned HTML instead of JSON/JSONL`
+                    );
+                }
+
+                allData = parseStructuredData(normalizedText);
                 
                 if (allData.length === 0) {
                     throw new Error('No data found in file');
@@ -752,8 +766,25 @@
                 applyFilters();
                 updateStats();
             } catch (error) {
-                showError(`Error parsing JSONL: ${error.message}`);
+                showError(`Error parsing data: ${error.message}`);
             }
+        }
+
+        function parseStructuredData(text) {
+            const firstChar = text[0];
+            if (firstChar === '[' || firstChar === '{') {
+                const parsed = JSON.parse(text);
+                return Array.isArray(parsed) ? parsed : [parsed];
+            }
+
+            const lines = text.split(/\r?\n/).filter(line => line.trim());
+            return lines.map((line, index) => {
+                try {
+                    return JSON.parse(line);
+                } catch (error) {
+                    throw new Error(`Line ${index + 1}: ${error.message}`);
+                }
+            });
         }
 
         function updateFilters() {
