@@ -624,6 +624,11 @@
         });
 
         const MANIFEST_URL = 'available-files.json';
+        const GITHUB_REPO = {
+            owner: 'wwenrr',
+            repo: 'regenerate-old-product-description',
+            branch: 'main',
+        };
 
         async function loadAvailableFiles() {
             try {
@@ -645,7 +650,10 @@
                 const response = await fetch(filename);
                 if (!response.ok) throw new Error(`Failed to load ${filename}`);
                 
-                const text = await response.text();
+                let text = await response.text();
+                if (isGitLfsPointer(text)) {
+                    text = await fetchBundledFileFromGitHub(filename);
+                }
                 parseData(text, filename);
             } catch (error) {
                 showError(`Error loading file: ${error.message}`);
@@ -660,7 +668,10 @@
                 const response = await fetch(url);
                 if (!response.ok) throw new Error(`Failed to load from URL: ${response.status}`);
                 
-                const text = await response.text();
+                let text = await response.text();
+                if (isGitLfsPointer(text)) {
+                    text = await fetchGitHubLfsAlternative(url, text);
+                }
                 parseData(text, url);
             } catch (error) {
                 showError(`Error loading from URL: ${error.message}`);
@@ -744,7 +755,7 @@
                     throw new Error('No data found in file');
                 }
 
-                if (/^version https?:\/\/git-lfs\.github\.com\/spec\/v1/i.test(normalizedText)) {
+                if (isGitLfsPointer(normalizedText)) {
                     throw new Error(
                         `${sourceLabel} is a Git LFS pointer, not the actual JSONL data file`
                     );
@@ -768,6 +779,68 @@
             } catch (error) {
                 showError(`Error parsing data: ${error.message}`);
             }
+        }
+
+        function isGitLfsPointer(text) {
+            return /^version https?:\/\/git-lfs\.github\.com\/spec\/v1/i.test(String(text ?? '').trim());
+        }
+
+        async function fetchBundledFileFromGitHub(filename) {
+            const candidates = [
+                `https://media.githubusercontent.com/media/${GITHUB_REPO.owner}/${GITHUB_REPO.repo}/${GITHUB_REPO.branch}/${filename}`,
+                `https://github.com/${GITHUB_REPO.owner}/${GITHUB_REPO.repo}/raw/${GITHUB_REPO.branch}/${filename}`,
+            ];
+            return fetchFirstWorkingText(candidates, filename);
+        }
+
+        async function fetchGitHubLfsAlternative(url, originalText) {
+            const candidates = [];
+            const rawMatch = url.match(/^https:\/\/raw\.githubusercontent\.com\/([^/]+)\/([^/]+)\/([^/]+)\/(.+)$/);
+            if (rawMatch) {
+                const [, owner, repo, branch, path] = rawMatch;
+                candidates.push(`https://media.githubusercontent.com/media/${owner}/${repo}/${branch}/${path}`);
+                candidates.push(`https://github.com/${owner}/${repo}/raw/${branch}/${path}`);
+            }
+
+            const githubRawMatch = url.match(/^https:\/\/github\.com\/([^/]+)\/([^/]+)\/raw\/([^/]+)\/(.+)$/);
+            if (githubRawMatch) {
+                const [, owner, repo, branch, path] = githubRawMatch;
+                candidates.push(`https://media.githubusercontent.com/media/${owner}/${repo}/${branch}/${path}`);
+            }
+
+            if (candidates.length === 0) {
+                return originalText;
+            }
+
+            return fetchFirstWorkingText(candidates, url);
+        }
+
+        async function fetchFirstWorkingText(candidates, sourceLabel) {
+            let lastError = null;
+
+            for (const candidateUrl of candidates) {
+                try {
+                    const response = await fetch(candidateUrl);
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+
+                    const text = await response.text();
+                    if (!text.trim()) {
+                        throw new Error('Empty response');
+                    }
+
+                    if (isGitLfsPointer(text)) {
+                        throw new Error('Still received Git LFS pointer');
+                    }
+
+                    return text;
+                } catch (error) {
+                    lastError = error;
+                }
+            }
+
+            throw new Error(`Unable to resolve Git LFS content for ${sourceLabel}: ${lastError?.message || 'unknown error'}`);
         }
 
         function parseStructuredData(text) {
