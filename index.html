@@ -844,13 +844,28 @@
         }
 
         function parseStructuredData(text) {
-            const firstChar = text[0];
-            if (firstChar === '[' || firstChar === '{') {
-                const parsed = JSON.parse(text);
+            const normalizedText = String(text ?? '').trim();
+            const firstChar = normalizedText[0];
+
+            if (firstChar === '[') {
+                const parsed = JSON.parse(normalizedText);
                 return Array.isArray(parsed) ? parsed : [parsed];
             }
 
-            const lines = text.split(/\r?\n/).filter(line => line.trim());
+            if (firstChar === '{') {
+                try {
+                    const parsed = JSON.parse(normalizedText);
+                    return Array.isArray(parsed) ? parsed : [parsed];
+                } catch (error) {
+                    // JSONL commonly starts with "{" on the first line, so fall back
+                    // to line-by-line parsing when the full payload is not valid JSON.
+                    if (!/after JSON at position|Unexpected non-whitespace character after JSON/i.test(error.message)) {
+                        throw error;
+                    }
+                }
+            }
+
+            const lines = normalizedText.split(/\r?\n/).filter(line => line.trim());
             return lines.map((line, index) => {
                 try {
                     return JSON.parse(line);
