@@ -520,6 +520,87 @@
             color: var(--text);
             padding: 0 16px;
         }
+
+        .comparison-cell {
+            min-width: 320px;
+            vertical-align: top;
+        }
+
+        .comparison-block + .comparison-block {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .comparison-label {
+            display: block;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+
+        .comparison-text {
+            color: var(--text);
+            line-height: 1.5;
+            word-break: break-word;
+            overflow-wrap: anywhere;
+        }
+
+        .comparison-text.preview {
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 3;
+            overflow: hidden;
+        }
+
+        .meta-table {
+            table-layout: fixed;
+            min-width: 1320px;
+        }
+
+        .meta-table th,
+        .meta-table td {
+            vertical-align: top;
+        }
+
+        .meta-table .col-handle {
+            width: 150px;
+        }
+
+        .meta-table .col-product {
+            width: 148px;
+        }
+
+        .meta-table .col-live {
+            width: 88px;
+        }
+
+        .meta-table .col-status {
+            width: 110px;
+        }
+
+        .meta-table .col-title {
+            width: 320px;
+        }
+
+        .meta-table .col-description {
+            width: 320px;
+        }
+
+        .meta-table .col-processed {
+            width: 170px;
+        }
+
+        .meta-table .col-duration {
+            width: 110px;
+        }
+
+        .muted-text {
+            color: var(--text-muted);
+        }
     </style>
 </head>
 <body>
@@ -580,6 +661,8 @@
         let allData = [];
         let filteredData = [];
         let currentPage = 1;
+        let currentSourceLabel = '';
+        let currentDatasetType = 'default';
         let sortField = 'processed_at';
         let sortDirection = 'desc';
         const itemsPerPage = 200;
@@ -773,6 +856,11 @@
                     throw new Error('No data found in file');
                 }
 
+                currentSourceLabel = sourceLabel;
+                currentDatasetType = detectDatasetType(allData, sourceLabel);
+                sortField = getDefaultSortField();
+                sortDirection = 'desc';
+
                 updateFilters();
                 applyFilters();
                 updateStats();
@@ -878,12 +966,15 @@
         function updateFilters() {
             const statuses = [...new Set(allData.map(item => item.status).filter(Boolean))];
             const categories = [...new Set(allData.map(item => item.category).filter(Boolean))];
+            const hasCategories = categories.length > 0;
 
             statusFilter.innerHTML = '<option value="">All</option>' + 
                 statuses.map(s => `<option value="${s}">${s}</option>`).join('');
 
             categoryFilter.innerHTML = '<option value="">All</option>' + 
                 categories.map(c => `<option value="${c}">${c}</option>`).join('');
+
+            categoryFilter.closest('.filter-group').style.display = hasCategories ? 'flex' : 'none';
 
             filtersContainer.style.display = 'flex';
         }
@@ -895,8 +986,7 @@
 
             filteredData = allData.filter(item => {
                 const matchesSearch = !searchTerm || 
-                    item.title?.toLowerCase().includes(searchTerm) ||
-                    String(item.product_id ?? '').toLowerCase().includes(searchTerm);
+                    getSearchableFields(item).some(value => value.includes(searchTerm));
                 
                 const matchesStatus = !statusValue || item.status === statusValue;
                 const matchesCategory = !categoryValue || item.category === categoryValue;
@@ -988,6 +1078,11 @@
         }
 
         function renderProducts() {
+            if (currentDatasetType === 'meta') {
+                renderMetaProducts();
+                return;
+            }
+
             const startIndex = (currentPage - 1) * itemsPerPage;
             const endIndex = startIndex + itemsPerPage;
             const pageData = filteredData.slice(startIndex, endIndex);
@@ -1010,7 +1105,17 @@
             productsContainer.innerHTML = `
                 <div class="table-wrap">
                 <div class="table-container">
-                    <table>
+                    <table class="meta-table">
+                        <colgroup>
+                            <col class="col-handle" />
+                            <col class="col-product" />
+                            <col class="col-live" />
+                            <col class="col-status" />
+                            <col class="col-title" />
+                            <col class="col-description" />
+                            <col class="col-processed" />
+                            <col class="col-duration" />
+                        </colgroup>
                         <thead>
                             <tr>
                                 <th class="${getSortClass('title')}" onclick="handleSort('title')">Title</th>
@@ -1053,17 +1158,109 @@
                                         </td>
                                         <td>
                                             ${item.old_description ? 
-                                                `<a href="#" class="link-view" onclick="showDescription('Old Description', ${index}, 'old'); return false;">View</a>` : 
+                                                `<a href="#" class="link-view" onclick="showDescription('Old Description', ${index}, 'old_description'); return false;">View</a>` : 
                                                 '-'
                                             }
                                         </td>
                                         <td>
                                             ${item.new_description ? 
-                                                `<a href="#" class="link-view" onclick="showDescription('New Description', ${index}, 'new'); return false;">View</a>` : 
+                                                `<a href="#" class="link-view" onclick="showDescription('New Description', ${index}, 'new_description'); return false;">View</a>` : 
                                                 '-'
                                             }
                                         </td>
                                         <td>${escapeHtml(item.category || '-')}</td>
+                                        <td style="white-space: nowrap;">${formatDate(item.processed_at)}</td>
+                                        <td>${item.processing_duration_ms !== undefined && item.processing_duration_ms !== null ? 
+                                            item.processing_duration_ms.toFixed(2) + 'ms' : 
+                                            '-'
+                                        }</td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+                </div>
+            `;
+
+            renderPagination();
+        }
+
+        function renderMetaProducts() {
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = startIndex + itemsPerPage;
+            const pageData = filteredData.slice(startIndex, endIndex);
+
+            if (filteredData.length === 0) {
+                productsContainer.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-text">No products found matching your filters</div>
+                    </div>
+                `;
+                paginationContainer.innerHTML = '';
+                return;
+            }
+
+            const getSortClass = (field) => {
+                if (sortField !== field) return 'sortable';
+                return sortDirection === 'asc' ? 'sorted-asc' : 'sorted-desc';
+            };
+
+            productsContainer.innerHTML = `
+                <div class="table-wrap">
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th class="${getSortClass('handle')}" onclick="handleSort('handle')">Handle</th>
+                                <th>Product</th>
+                                <th>Live URL</th>
+                                <th class="${getSortClass('status')}" onclick="handleSort('status')">Status</th>
+                                <th class="comparison-cell">SEO Title</th>
+                                <th class="comparison-cell">SEO Description</th>
+                                <th class="${getSortClass('processed_at')}" onclick="handleSort('processed_at')">Processed At</th>
+                                <th class="${getSortClass('processing_duration_ms')}" onclick="handleSort('processing_duration_ms')">Duration</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${pageData.map((item, index) => {
+                                const productId = extractProductId(item.product_id);
+                                const productAdminLink = getProductAdminLink(fileSelect.value, productId);
+                                const liveUrl = item.live_url;
+                                
+                                return `
+                                    <tr>
+                                        <td style="max-width: 260px;">${escapeHtml(item.handle || '-')}</td>
+                                        <td>
+                                            ${productId ? 
+                                                `<a href="${productAdminLink}" target="_blank" class="product-link">${productId}</a>` : 
+                                                'N/A'
+                                            }
+                                        </td>
+                                        <td>
+                                            ${liveUrl ? 
+                                                `<a href="${escapeHtml(liveUrl)}" target="_blank" class="product-link">Live</a>` : 
+                                                '-'
+                                            }
+                                        </td>
+                                        <td>
+                                            ${item.status ? 
+                                                `<span class="status-badge ${getStatusClass(item.status)}">${item.status}</span>` : 
+                                                'N/A'
+                                            }
+                                        </td>
+                                        <td class="comparison-cell">
+                                            ${renderComparisonCell(index, item, [
+                                                { label: 'Source', field: 'source_title' },
+                                                { label: 'Generated', field: 'generated_title' }
+                                            ], { preview: true })}
+                                        </td>
+                                        <td class="comparison-cell">
+                                            ${renderComparisonCell(index, item, [
+                                                { label: 'Source', field: 'source_description', modalLabel: 'Source Description' },
+                                                { label: 'Generated', field: 'generated_description', modalLabel: 'Generated Description' }
+                                            ], { useModal: true })}
+                                        </td>
                                         <td style="white-space: nowrap;">${formatDate(item.processed_at)}</td>
                                         <td>${item.processing_duration_ms !== undefined && item.processing_duration_ms !== null ? 
                                             item.processing_duration_ms.toFixed(2) + 'ms' : 
@@ -1120,12 +1317,13 @@
             return null;
         }
 
-        function showDescription(title, index, type) {
+        function showDescription(title, index, field) {
             const startIndex = (currentPage - 1) * itemsPerPage;
             const item = filteredData[startIndex + index];
-            const description = type === 'old' ? item.old_description : item.new_description;
+            const description = item?.[field];
             
-            modalTitle.textContent = title + ': ' + (item.title || 'Untitled');
+            const itemLabel = item?.title || item?.source_title || item?.handle || 'Untitled';
+            modalTitle.textContent = title + ': ' + itemLabel;
             modalBody.innerHTML = description || 'No description available';
             modal.classList.add('active');
         }
@@ -1192,6 +1390,61 @@
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
+        }
+
+        function detectDatasetType(data, sourceLabel) {
+            const normalizedLabel = String(sourceLabel || '').toLowerCase();
+            const sample = data.find(item => item && typeof item === 'object') || {};
+            const looksLikeMeta = normalizedLabel.includes('_meta') ||
+                ('source_title' in sample) ||
+                ('generated_title' in sample) ||
+                ('source_description' in sample) ||
+                ('generated_description' in sample);
+
+            return looksLikeMeta ? 'meta' : 'default';
+        }
+
+        function getDefaultSortField() {
+            return 'processed_at';
+        }
+
+        function getSearchableFields(item) {
+            const fields = currentDatasetType === 'meta'
+                ? [item.handle, item.source_title, item.generated_title, item.product_id, item.live_url]
+                : [item.title, item.product_id, item.category, item.live_url];
+
+            return fields
+                .filter(value => value !== undefined && value !== null)
+                .map(value => String(value).toLowerCase());
+        }
+
+        function renderComparisonCell(index, item, fields, options = {}) {
+            const { useModal = false, preview = false } = options;
+
+            return fields.map(({ label, field, modalLabel }) => {
+                const value = item[field];
+                const safeValue = escapeHtml(value || '');
+
+                if (!value) {
+                    return `
+                        <div class="comparison-block">
+                            <span class="comparison-label">${escapeHtml(label)}</span>
+                            <div class="comparison-text muted-text">-</div>
+                        </div>
+                    `;
+                }
+
+                const content = useModal
+                    ? `<a href="#" class="link-view" onclick="showDescription('${escapeHtml(modalLabel || label)}', ${index}, '${escapeHtml(field)}'); return false;">View</a>`
+                    : `<div class="comparison-text${preview ? ' preview' : ''}">${safeValue}</div>`;
+
+                return `
+                    <div class="comparison-block">
+                        <span class="comparison-label">${escapeHtml(label)}</span>
+                        ${content}
+                    </div>
+                `;
+            }).join('');
         }
 
         function showLoading() {
