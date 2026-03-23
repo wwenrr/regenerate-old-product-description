@@ -1,0 +1,29 @@
+{
+  "type": "jsonl-batches",
+  "dataset": "seo_jf_20260311_155559_meta_1",
+  "batch_size": 50,
+  "total_items": 1043,
+  "parts": [
+    "data/seo_jf_20260311_155559_meta_1/batch/part-0001.jsonl",
+    "data/seo_jf_20260311_155559_meta_1/batch/part-0002.jsonl",
+    "data/seo_jf_20260311_155559_meta_1/batch/part-0003.jsonl",
+    "data/seo_jf_20260311_155559_meta_1/batch/part-0004.jsonl",
+    "data/seo_jf_20260311_155559_meta_1/batch/part-0005.jsonl",
+    "data/seo_jf_20260311_155559_meta_1/batch/part-0006.jsonl",
+    "data/seo_jf_20260311_155559_meta_1/batch/part-0007.jsonl",
+    "data/seo_jf_20260311_155559_meta_1/batch/part-0008.jsonl",
+    "data/seo_jf_20260311_155559_meta_1/batch/part-0009.jsonl",
+    "data/seo_jf_20260311_155559_meta_1/batch/part-0010.jsonl",
+    "data/seo_jf_20260311_155559_meta_1/batch/part-0011.jsonl",
+    "data/seo_jf_20260311_155559_meta_1/batch/part-0012.jsonl",
+    "data/seo_jf_20260311_155559_meta_1/batch/part-0013.jsonl",
+    "data/seo_jf_20260311_155559_meta_1/batch/part-0014.jsonl",
+    "data/seo_jf_20260311_155559_meta_1/batch/part-0015.jsonl",
+    "data/seo_jf_20260311_155559_meta_1/batch/part-0016.jsonl",
+    "data/seo_jf_20260311_155559_meta_1/batch/part-0017.jsonl",
+    "data/seo_jf_20260311_155559_meta_1/batch/part-0018.jsonl",
+    "data/seo_jf_20260311_155559_meta_1/batch/part-0019.jsonl",
+    "data/seo_jf_20260311_155559_meta_1/batch/part-0020.jsonl",
+    "data/seo_jf_20260311_155559_meta_1/batch/part-0021.jsonl"
+  ]
+}

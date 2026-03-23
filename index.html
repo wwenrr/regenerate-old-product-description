@@ -665,6 +665,7 @@
         let currentDatasetType = 'default';
         let sortField = 'processed_at';
         let sortDirection = 'desc';
+        let availableFileEntries = new Map();
         const itemsPerPage = 200;
 
         const fileSelect = document.getElementById('fileSelect');
@@ -689,7 +690,7 @@
         customFileInput.addEventListener('change', handleCustomFileUpload);
         reloadBtn.addEventListener('click', () => {
             if (fileSelect.value) {
-                loadFile(fileSelect.value);
+                loadSelectedEntry(fileSelect.value);
             }
         });
         loadUrlBtn.addEventListener('click', handleUrlLoad);
@@ -719,13 +720,76 @@
                 if (!response.ok) return;
                 const list = await response.json();
                 if (!Array.isArray(list) || list.length === 0) return;
-                const options = list.map(f => `<option value="${escapeHtml(f)}">${escapeHtml(f)}</option>`).join('');
+
+                const normalizedEntries = list
+                    .map(entry => normalizeFileEntry(entry))
+                    .filter(Boolean);
+
+                if (normalizedEntries.length === 0) return;
+
+                availableFileEntries = new Map(normalizedEntries.map(entry => [entry.value, entry]));
+                const options = normalizedEntries
+                    .map(entry => `<option value="${escapeHtml(entry.value)}">${escapeHtml(entry.label)}</option>`)
+                    .join('');
                 fileSelect.innerHTML = '<option value="">Select a file...</option>' + options;
-                fileSelect.value = list[0];
+                fileSelect.value = normalizedEntries[0].value;
             } catch (_) {}
         }
 
-        async function loadFile(filename) {
+        function normalizeFileEntry(entry) {
+            if (typeof entry === 'string') {
+                return {
+                    kind: 'file',
+                    value: entry,
+                    label: entry,
+                    filename: entry,
+                    sourceLabel: entry
+                };
+            }
+
+            if (!entry || typeof entry !== 'object') return null;
+
+            if (typeof entry.manifest === 'string' && entry.manifest) {
+                const sourceLabel = entry.source_label || entry.dataset || entry.label || entry.manifest;
+                return {
+                    kind: 'manifest',
+                    value: `manifest:${entry.manifest}`,
+                    label: entry.label || `${sourceLabel} (batched)`,
+                    manifestPath: entry.manifest,
+                    sourceLabel
+                };
+            }
+
+            if (typeof entry.file === 'string' && entry.file) {
+                const sourceLabel = entry.source_label || entry.label || entry.file;
+                return {
+                    kind: 'file',
+                    value: entry.file,
+                    label: entry.label || entry.file,
+                    filename: entry.file,
+                    sourceLabel
+                };
+            }
+
+            return null;
+        }
+
+        async function loadSelectedEntry(selectedValue) {
+            const selected = availableFileEntries.get(selectedValue);
+            if (!selected) {
+                await loadFile(selectedValue, selectedValue);
+                return;
+            }
+
+            if (selected.kind === 'manifest') {
+                await loadManifestDataset(selected.manifestPath, selected.sourceLabel);
+                return;
+            }
+
+            await loadFile(selected.filename, selected.sourceLabel);
+        }
+
+        async function loadFile(filename, sourceLabel = filename) {
             showLoading();
             errorContainer.innerHTML = '';
             
@@ -737,9 +801,46 @@
                 if (isGitLfsPointer(text)) {
                     text = await fetchBundledFileFromGitHub(filename);
                 }
-                parseData(text, filename);
+                parseData(text, sourceLabel);
             } catch (error) {
                 showError(`Error loading file: ${error.message}`);
+            }
+        }
+
+        async function loadManifestDataset(manifestPath, sourceLabel) {
+            showLoading();
+            errorContainer.innerHTML = '';
+
+            try {
+                const response = await fetch(manifestPath);
+                if (!response.ok) throw new Error(`Failed to load manifest: ${manifestPath}`);
+
+                const manifest = await response.json();
+                const parts = Array.isArray(manifest.parts) ? manifest.parts : [];
+                if (parts.length === 0) throw new Error('Manifest does not contain any parts');
+
+                const mergedData = [];
+                for (let i = 0; i < parts.length; i++) {
+                    const partPath = parts[i];
+                    productsContainer.innerHTML = `<div class="loading">Loading parts ${i + 1}/${parts.length}...</div>`;
+                    const partResponse = await fetch(partPath);
+                    if (!partResponse.ok) {
+                        throw new Error(`Failed to load part ${i + 1}: ${partPath}`);
+                    }
+
+                    const partText = await partResponse.text();
+                    if (!partText.trim()) continue;
+                    if (isGitLfsPointer(partText)) {
+                        throw new Error(`Part ${partPath} is a Git LFS pointer`);
+                    }
+
+                    const rows = parseStructuredData(partText);
+                    mergedData.push(...rows);
+                }
+
+                applyParsedData(mergedData, sourceLabel || manifest.dataset || manifestPath);
+            } catch (error) {
+                showError(`Error loading batched dataset: ${error.message}`);
             }
         }
 
@@ -792,19 +893,33 @@
                 return true;
             }
             const file = params.get('file');
-            if (file && Array.from(fileSelect.options).some(opt => opt.value === file)) {
-                fileSelect.value = file;
-                loadFile(file);
-                return true;
+            if (file) {
+                const hasDirectMatch = Array.from(fileSelect.options).some(opt => opt.value === file);
+                const manifestAlias = `manifest:${file}`;
+                const hasManifestAlias = Array.from(fileSelect.options).some(opt => opt.value === manifestAlias);
+
+                if (hasDirectMatch) {
+                    fileSelect.value = file;
+                    loadSelectedEntry(file);
+                    return true;
+                }
+
+                if (hasManifestAlias) {
+                    fileSelect.value = manifestAlias;
+                    loadSelectedEntry(manifestAlias);
+                    return true;
+                }
+
+                return false;
             }
             return false;
         }
 
         function handleFileSelect() {
-            const filename = fileSelect.value;
-            if (filename) {
-                updateFileInQueryString(filename);
-                loadFile(filename);
+            const selectedValue = fileSelect.value;
+            if (selectedValue) {
+                updateFileInQueryString(selectedValue);
+                loadSelectedEntry(selectedValue);
             } else {
                 updateFileInQueryString('');
             }
@@ -850,23 +965,27 @@
                     );
                 }
 
-                allData = parseStructuredData(normalizedText);
-                
-                if (allData.length === 0) {
+                const parsedData = parseStructuredData(normalizedText);
+                if (parsedData.length === 0) {
                     throw new Error('No data found in file');
                 }
 
-                currentSourceLabel = sourceLabel;
-                currentDatasetType = detectDatasetType(allData, sourceLabel);
-                sortField = getDefaultSortField();
-                sortDirection = 'desc';
-
-                updateFilters();
-                applyFilters();
-                updateStats();
+                applyParsedData(parsedData, sourceLabel);
             } catch (error) {
                 showError(`Error parsing data: ${error.message}`);
             }
+        }
+
+        function applyParsedData(parsedData, sourceLabel) {
+            allData = parsedData;
+            currentSourceLabel = sourceLabel;
+            currentDatasetType = detectDatasetType(allData, sourceLabel);
+            sortField = getDefaultSortField();
+            sortDirection = 'desc';
+
+            updateFilters();
+            applyFilters();
+            updateStats();
         }
 
         function isGitLfsPointer(text) {
@@ -1132,7 +1251,7 @@
                         <tbody>
                             ${pageData.map((item, index) => {
                                 const productId = extractProductId(item.product_id);
-                                const productAdminLink = getProductAdminLink(fileSelect.value, productId);
+                                const productAdminLink = getProductAdminLink(currentSourceLabel, productId);
                                 const liveUrl = item.live_url;
                                 
                                 return `
@@ -1225,7 +1344,7 @@
                         <tbody>
                             ${pageData.map((item, index) => {
                                 const productId = extractProductId(item.product_id);
-                                const productAdminLink = getProductAdminLink(fileSelect.value, productId);
+                                const productAdminLink = getProductAdminLink(currentSourceLabel, productId);
                                 const liveUrl = item.live_url;
                                 
                                 return `
@@ -1465,7 +1584,7 @@
         (async function init() {
             await loadAvailableFiles();
             if (checkQueryString()) return;
-            if (fileSelect.value) loadFile(fileSelect.value);
+            if (fileSelect.value) loadSelectedEntry(fileSelect.value);
         })();
     </script>
 </body>
