@@ -1,0 +1,10 @@
+{
+  "type": "jsonl-batches",
+  "dataset": "jwl_20260417_114214",
+  "batch_size": 50,
+  "total_items": 78,
+  "parts": [
+    "data/jwl_20260417_114214/batch/part-0001.jsonl",
+    "data/jwl_20260417_114214/batch/part-0002.jsonl"
+  ]
+}
